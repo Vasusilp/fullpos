@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 // จอแสดงคิว: เปิดด้วย display token (QUEUE_DISPLAY_TOKEN) โดยไม่ต้องล็อกอิน คืนเฉพาะเลขคิว ไม่มีข้อมูลลูกค้า
 export async function GET(request) {
@@ -20,3 +22,4 @@ export async function GET(request) {
     ready: rows.filter((o) => o.status === 'ready').map((o) => o.queue_no),
   });
 }
+
