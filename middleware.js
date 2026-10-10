@@ -9,10 +9,28 @@ export async function middleware(request) {
   const needsAuth = STAFF_ROUTES.some((p) => path === p || path.startsWith(p + '/'));
   if (!needsAuth) return NextResponse.next();
 
+  // ถ้า env ไม่ครบหรือ Supabase เรียกไม่สำเร็จ: เขียนสาเหตุลง Runtime Logs แล้วส่งไป /login
+  // (แทนที่จะปล่อยให้ขึ้น 500 MIDDLEWARE_INVOCATION_FAILED ทั้งเว็บ). /login ไม่ผ่าน middleware จึงไม่วนลูป
+  try {
+    return await guard(request, path);
+  } catch (err) {
+    console.error('[middleware] failed:', err?.name, err?.message);
+    return NextResponse.redirect(new URL('/login?error=server', request.url));
+  }
+}
+
+async function guard(request, path) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    console.error('[middleware] missing env:', !url ? 'NEXT_PUBLIC_SUPABASE_URL' : '', !key ? 'NEXT_PUBLIC_SUPABASE_ANON_KEY' : '');
+    return NextResponse.redirect(new URL('/login?error=config', request.url));
+  }
+
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    url,
+    key,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
