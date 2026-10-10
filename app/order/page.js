@@ -4,7 +4,7 @@ import { Plus, Minus, ShoppingBag } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '@/store/appStore';
 import { useT } from '@/lib/i18n';
-import { money, queueLabel, calcTotals, settingsFromRows } from '@/lib/points';
+import { money, queueLabel, calcTotals, settingsFromRows, maxRedeemablePoints } from '@/lib/points';
 import { promptPayPayload } from '@/lib/promptpay';
 import Modal from '@/components/Modal';
 
@@ -26,6 +26,9 @@ export default function CustomerOrderPage() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [pts, setPts] = useState(0);
+  const [mem, setMem] = useState(null); // สมาชิกที่ยืนยัน PIN แล้ว (ไว้แสดงแต้มคงเหลือ)
+  const [checking, setChecking] = useState(false);
+  const [memErr, setMemErr] = useState('');
   const [placed, setPlaced] = useState(null); // { token, queue_no, total, promptpay_id }
   const [status, setStatus] = useState(null);
   const [err, setErr] = useState('');
@@ -78,7 +81,20 @@ export default function CustomerOrderPage() {
   );
   const count = items.reduce((a, i) => a + i.quantity, 0);
   // แสดงผลเท่านั้น: ถ้ากรอก PIN ให้คำนวณส่วนลดโดยประมาณ ราคาจริงคำนวณที่เซิร์ฟเวอร์
-  const preview = calcTotals(items, pin ? { points: 1e9, tier: 'member' } : null, pts, settings);
+  const preview = calcTotals(items, mem ? { points: mem.points, tier: mem.tier } : null, pts, settings);
+  const maxPts = mem ? maxRedeemablePoints(preview.subtotal, mem, settings) : 0;
+  const pctOff = preview.subtotal ? (preview.discount / preview.subtotal) * 100 : 0;
+
+  async function checkPoints() {
+    setChecking(true); setMemErr(''); setMem(null);
+    try {
+      const res = await fetch('/api/members/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, pin }) });
+      const j = await res.json();
+      if (!res.ok) setMemErr(j.error === 'locked' ? t.lockedTry : 'เบอร์หรือ PIN ไม่ถูกต้อง');
+      else setMem(j.member);
+    } catch { setMemErr(t.error); }
+    setChecking(false);
+  }
   const set = (id, d) => setCart((c) => { const q = Math.max(0, Math.min(99, (c[id] || 0) + d)); const n = { ...c }; if (q) n[id] = q; else delete n[id]; return n; });
 
   async function submit() {
@@ -87,7 +103,7 @@ export default function CustomerOrderPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
-        phone: phone || undefined, pin: pin || undefined, points_to_use: pin ? pts : 0,
+        phone: phone || undefined, pin: pin || undefined, points_to_use: mem ? pts : 0,
       }),
     });
     const j = await res.json();
@@ -218,20 +234,36 @@ export default function CustomerOrderPage() {
 
           <div className="rounded-2xl bg-pearl p-3 space-y-2">
             <div className="label !mb-0">{t.memberOptional}</div>
-            <input className="input" inputMode="numeric" maxLength={10} placeholder="0xxxxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} />
+            <input className="input" inputMode="numeric" maxLength={10} placeholder="0xxxxxxxxx" value={phone} onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '')); setMem(null); setPts(0); }} />
             {phone.length === 10 && (<>
-              <input className="input" type="password" inputMode="numeric" maxLength={6} placeholder={`${t.pin} (${t.redeemPoints}, ${t.optional})`} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} />
-              {pin.length >= 4 && (
-                <input className="input" type="number" min="0" step="10" placeholder={`${t.usePoints} (${t.optional})`} value={pts || ''} onChange={(e) => setPts(Math.max(0, Number(e.target.value) || 0))} />
+              <input className="input" type="password" inputMode="numeric" maxLength={6} placeholder={`${t.pin} (${t.redeemPoints}, ${t.optional})`} value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setMem(null); setPts(0); }} />
+              {pin.length >= 4 && !mem && (
+                <button type="button" className="btn-ghost w-full !py-2 text-sm" disabled={checking} onClick={checkPoints}>{checking ? '...' : 'ตรวจแต้ม / Check points'}</button>
               )}
+              {memErr && <p className="text-xs text-bad">{memErr}</p>}
+              {mem && (<>
+                <div className="flex justify-between text-xs text-ink-soft">
+                  <span>{mem.full_name} · {mem.tier}</span>
+                  <span>{t.redeemPoints} (max {maxPts})</span>
+                </div>
+                <div className="flex gap-2">
+                  <input className="input !py-1.5" type="number" min="0" step="10" placeholder={t.usePoints} value={pts || ''} onChange={(e) => setPts(Math.max(0, Number(e.target.value) || 0))} />
+                  <button type="button" className="btn-ghost !py-1.5 !px-3 text-xs whitespace-nowrap" onClick={() => setPts(maxPts)}>{t.useAll}</button>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-ink-soft">{t.pointsLeft}: <b className="text-ink">{Math.max(0, mem.points - preview.pointsUsed)}</b> / {mem.points}</span>
+                  {preview.discount > 0 && <span className="text-ok font-semibold">{t.discountPct} ฿{money(preview.discount)} ({pctOff.toFixed(1).replace(/\.0$/, '')}%)</span>}
+                </div>
+              </>)}
             </>)}
           </div>
 
           <div className="text-sm text-ink-soft space-y-1">
             <div className="flex justify-between"><span>{t.subtotal}</span><span>฿{money(preview.subtotal)}</span></div>
+            {preview.discount > 0 && <div className="flex justify-between text-ok"><span>{t.discount}</span><span>-฿{money(preview.discount)}</span></div>}
             <div className="flex justify-between"><span>{t.tax}</span><span>฿{money(preview.tax)}</span></div>
             <div className="flex justify-between text-ink text-lg font-extrabold"><span>{t.total}</span><span className="text-gold-dark">฿{money(preview.total)}</span></div>
-            {pin && <p className="text-xs">* ส่วนลดจากแต้มจะคำนวณจริงเมื่อสั่งซื้อ · Points discount is applied at checkout</p>}
+            {pin && !mem && <p className="text-xs">* กด "ตรวจแต้ม" เพื่อดูแต้มคงเหลือและส่วนลด · Tap "Check points" to see balance and discount</p>}
           </div>
           {err && <p className="text-sm text-bad">{err}</p>}
           <button className="btn-gold w-full !py-3" disabled={busy || !items.length} onClick={submit}>{t.promptpay}</button>
