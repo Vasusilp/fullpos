@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 // ลูกค้าติดตามสถานะออเดอร์ตัวเองด้วย public_token (uuid เดายาก)
 export async function GET(request) {
