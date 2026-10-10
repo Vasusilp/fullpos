@@ -156,6 +156,10 @@ export default function PosPage() {
                 <span>{t.redeemPoints} (max {maxPts})</span>
                 <span>{t.willEarn} +{totals.pointsEarned}</span>
               </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-ink-soft">{t.pointsLeft}: <b className="text-ink">{Math.max(0, (cart.member.points || 0) - totals.pointsUsed)}</b> / {cart.member.points || 0}</span>
+                {totals.discount > 0 && <span className="text-ok font-semibold">{t.discountPct} ฿{money(totals.discount)} ({(totals.discount / totals.subtotal * 100).toFixed(1).replace(/\.0$/, '')}%)</span>}
+              </div>
               <div className="flex gap-2">
                 <input className="input !py-1.5" type="number" min="0" step="10" value={cart.pointsToUse || ''}
                   placeholder={t.usePoints}

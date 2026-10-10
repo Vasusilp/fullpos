@@ -94,7 +94,7 @@ export default function OrdersPage() {
             </ul>
             <div className="space-y-1 text-ink-soft">
               <div className="flex justify-between"><span>{t.subtotal}</span><span>฿{money(sel.subtotal)}</span></div>
-              {sel.discount > 0 && <div className="flex justify-between"><span>{t.discount} ({sel.points_used} {t.points})</span><span>-฿{money(sel.discount)}</span></div>}
+              {sel.discount > 0 && <div className="flex justify-between"><span>{t.discount} {(sel.discount / sel.subtotal * 100).toFixed(1).replace(/\.0$/, '')}% ({sel.points_used} {t.points})</span><span>-฿{money(sel.discount)}</span></div>}
               <div className="flex justify-between"><span>{t.tax}</span><span>฿{money(sel.tax)}</span></div>
               <div className="flex justify-between font-bold text-ink text-base"><span>{t.total}</span><span>฿{money(sel.total)}</span></div>
             </div>

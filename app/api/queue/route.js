@@ -22,4 +22,3 @@ export async function GET(request) {
     ready: rows.filter((o) => o.status === 'ready').map((o) => o.queue_no),
   });
 }
-
