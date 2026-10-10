@@ -161,9 +161,9 @@ export default function PosPage() {
                 {totals.discount > 0 && <span className="text-ok font-semibold">{t.discountPct} ฿{money(totals.discount)} ({(totals.discount / totals.subtotal * 100).toFixed(1).replace(/\.0$/, '')}%)</span>}
               </div>
               <div className="flex gap-2">
-                <input className="input !py-1.5" type="number" min="0" step="10" value={cart.pointsToUse || ''}
+                <input className="input !py-1.5" type="number" min="0" step="10" max={maxPts} value={Math.min(cart.pointsToUse, maxPts) || ''}
                   placeholder={t.usePoints}
-                  onChange={(e) => cart.setPointsToUse(Math.max(0, Number(e.target.value) || 0))} />
+                  onChange={(e) => cart.setPointsToUse(Math.min(maxPts, Math.max(0, Number(e.target.value) || 0)))} />
                 <button className="btn-ghost !py-1.5 !px-3 text-xs whitespace-nowrap" onClick={() => cart.setPointsToUse(maxPts)}>{t.useAll}</button>
               </div>
             </div>

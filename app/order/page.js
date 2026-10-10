@@ -103,7 +103,7 @@ export default function CustomerOrderPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
-        phone: phone || undefined, pin: pin || undefined, points_to_use: mem ? pts : 0,
+        phone: phone || undefined, pin: pin || undefined, points_to_use: mem ? Math.min(pts, maxPts) : 0,
       }),
     });
     const j = await res.json();
@@ -247,7 +247,7 @@ export default function CustomerOrderPage() {
                   <span>{t.redeemPoints} (max {maxPts})</span>
                 </div>
                 <div className="flex gap-2">
-                  <input className="input !py-1.5" type="number" min="0" step="10" placeholder={t.usePoints} value={pts || ''} onChange={(e) => setPts(Math.max(0, Number(e.target.value) || 0))} />
+                  <input className="input !py-1.5" type="number" min="0" step="10" max={maxPts} placeholder={t.usePoints} value={Math.min(pts, maxPts) || ''} onChange={(e) => setPts(Math.min(maxPts, Math.max(0, Number(e.target.value) || 0)))} />
                   <button type="button" className="btn-ghost !py-1.5 !px-3 text-xs whitespace-nowrap" onClick={() => setPts(maxPts)}>{t.useAll}</button>
                 </div>
                 <div className="flex justify-between text-xs">
