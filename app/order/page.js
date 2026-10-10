@@ -52,13 +52,21 @@ export default function CustomerOrderPage() {
     let stop = false;
     async function tick() {
       try {
-        const res = await fetch(`/api/order-status?token=${placed.token}`, { cache: 'no-store' });
+        const res = await fetch(`/api/order-status?token=${placed.token}&t=${Date.now()}`, { cache: 'no-store' });
+        if (res.status === 404) {
+          // ไม่พบออเดอร์นี้แล้ว (เช่น token เก่า) ล้างทิ้งแทนการแสดงสถานะมั่ว ๆ
+          try { localStorage.removeItem(TOKEN_KEY); } catch {}
+          if (!stop) { setPlaced(null); setStatus(null); }
+          return;
+        }
         if (res.ok) { const j = await res.json(); if (!stop) setStatus(j.order); }
       } catch {}
       if (!stop) timer.current = setTimeout(tick, 3000);
     }
+    const onVisible = () => { if (document.visibilityState === 'visible') { clearTimeout(timer.current); tick(); } };
+    document.addEventListener('visibilitychange', onVisible);
     tick();
-    return () => { stop = true; clearTimeout(timer.current); };
+    return () => { stop = true; clearTimeout(timer.current); document.removeEventListener('visibilitychange', onVisible); };
   }, [placed]);
 
   const items = useMemo(
@@ -100,8 +108,8 @@ export default function CustomerOrderPage() {
 
   // ---------- หน้าชำระเงิน / ติดตามสถานะ ----------
   if (placed) {
-    const st = status?.status || 'awaiting_payment';
-    const stepIdx = STEPS.indexOf(st);
+    const st = status?.status || null;           // null = ยังไม่ได้สถานะจริงจากเซิร์ฟเวอร์
+    const stepIdx = st === 'done' ? STEPS.length : STEPS.indexOf(st);
     const label = { awaiting_payment: t.awaitingPayment, pending: t.pending, preparing: t.cooking, ready: t.pickup };
     return (
       <main className="min-h-screen bg-pearl p-4 flex justify-center">
@@ -119,6 +127,8 @@ export default function CustomerOrderPage() {
                 <div className="text-sm text-ink-soft">{t.total}: ฿{money(placed.total)}</div>
               </div>
 
+              {!st && <div className="card p-6 rounded-[32px] text-center text-sm text-ink-soft">กำลังโหลดสถานะ… / Loading status…</div>}
+
               {st === 'awaiting_payment' && (
                 <div className="card p-6 rounded-[32px] text-center space-y-3">
                   <p className="text-sm text-ink-soft">{t.scanToPay}</p>
@@ -127,7 +137,7 @@ export default function CustomerOrderPage() {
                 </div>
               )}
 
-              <div className="card p-6 rounded-[32px] space-y-3">
+              {st && <div className="card p-6 rounded-[32px] space-y-3">
                 <div className="label">{t.trackStatus}</div>
                 {STEPS.map((s, i) => (
                   <div key={s} className={`flex items-center gap-3 ${i <= stepIdx ? 'text-ink font-semibold' : 'text-gray-300'}`}>
@@ -136,7 +146,7 @@ export default function CustomerOrderPage() {
                   </div>
                 ))}
                 {st === 'done' && <div className="text-ok font-semibold">{t.done} ✓</div>}
-              </div>
+              </div>}
               {(st === 'done' || st === 'ready') && <button className="btn-ghost w-full" onClick={newOrder}>{t.orderOnline}</button>}
             </>
           )}
