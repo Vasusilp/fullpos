@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useApp } from '@/store/appStore';
@@ -11,6 +11,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+  useEffect(() => {
+    const e = new URLSearchParams(window.location.search).get('error');
+    if (e === 'config') setErr('Server config missing (Supabase env vars). Check Vercel Environment Variables, then redeploy.');
+    if (e === 'server') setErr('Server error while checking session. See Vercel Runtime Logs.');
+    if (e === 'inactive') setErr('Account is suspended.');
+  }, []);
   const [busy, setBusy] = useState(false);
 
   async function submit(e) {
