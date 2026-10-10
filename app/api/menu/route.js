@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/server';
-
+ 
 export const dynamic = 'force-dynamic';
-
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+ 
 // เมนูสาธารณะสำหรับหน้า /order (ลูกค้าไม่ได้ล็อกอิน จึงอ่านผ่าน Service Role เฉพาะฟิลด์ที่จำเป็น)
 export async function GET() {
   const sb = supabaseAdmin();
@@ -14,3 +16,4 @@ export async function GET() {
   ]);
   return NextResponse.json({ products: p.data || [], categories: c.data || [], settings: s.data || [] });
 }
+ 
